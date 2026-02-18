@@ -55,19 +55,6 @@ TEXT_EXTENSIONS = {
 }
 
 
-def _is_dotpath(path: Path, root: Path) -> bool:
-    """Return True if any path part (relative to `root`) starts with a dot."""
-    try:
-        rel = path.relative_to(root)
-    except Exception:
-        # If not relative, treat as non-dot
-        rel = path
-    for part in rel.parts:
-        if part.startswith('.'):
-            return True
-    return False
-
-
 def get_index(root_dir_path: str) -> List[Dict[str, str]]:
     """Return a flat list of dicts with key `file_path` for files under root.
 
@@ -97,10 +84,6 @@ def get_index(root_dir_path: str) -> List[Dict[str, str]]:
             # Extension based filtering: allow if no extension or ext in TEXT_EXTENSIONS
             ext = full.suffix.lower()
             if ext and ext not in TEXT_EXTENSIONS:
-                continue
-
-            # Skip files located in dot directories (parts starting with .)
-            if _is_dotpath(full, root):
                 continue
 
             # Compute relative POSIX path

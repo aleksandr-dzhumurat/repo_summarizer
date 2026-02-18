@@ -13,6 +13,8 @@ import ast
 from pathlib import Path
 from typing import List
 
+from ..utils import get_class_methods_flag, get_skipped_dirs
+
 # Common stdlib modules (Python 3.8+)
 STDLIB_MODULES = {
     "abc", "aifc", "argparse", "array", "ast", "asyncio", "atexit", "audioop",
@@ -128,6 +130,12 @@ def code_skeleton(index: List[dict], root_dir: str | None = None) -> str:
             continue
 
         p = Path(fp)
+
+        # Skip files in excluded directories (loaded from config.yml)
+        skipped_dirs = get_skipped_dirs()
+        if any(any(skip_dir in part.lower() for skip_dir in skipped_dirs) for part in p.parts):
+            continue
+        
         # Resolve against provided root_dir if file not absolute or doesn't exist
         if not p.is_absolute() and root_dir:
             p = Path(root_dir) / fp
@@ -148,6 +156,17 @@ def code_skeleton(index: List[dict], root_dir: str | None = None) -> str:
 
         out_lines.append(f"File: {fp}")
 
+        # Extract module-level docstring if present
+        module_docstring = ast.get_docstring(tree)
+        if module_docstring:
+            out_lines.append("Docstring:")
+            # Display first line or full docstring (truncated to 200 chars)
+            first_line = module_docstring.strip().splitlines()[0]
+            if len(first_line) > 200:
+                out_lines.append(f"  {first_line[:197]}...")
+            else:
+                out_lines.append(f"  {first_line}")
+
         imports = _collect_imports(tree)
         if imports:
             out_lines.append("Imports:")
@@ -157,6 +176,7 @@ def code_skeleton(index: List[dict], root_dir: str | None = None) -> str:
             out_lines.append("Imports: (none)")
 
         funcs: List[str] = []
+        classes: List[tuple[str, str, List[str]]] = []  # (class_name, class_doc, [methods])
 
         # Top-level functions
         for node in tree.body:
@@ -171,22 +191,50 @@ def code_skeleton(index: List[dict], root_dir: str | None = None) -> str:
             # Classes and their methods
             if isinstance(node, ast.ClassDef):
                 cls_name = node.name
-                # skip private classes? not requested
-                for item in node.body:
-                    if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                        fname = item.name
-                        if fname.startswith("_"):
-                            continue
-                        sig = _format_arguments(item.args)
-                        doc = _short_doc(item)
-                        funcs.append(f"{cls_name}.{fname}({sig}) -> {doc}")
+                if cls_name.startswith("_"):
+                    continue
+                cls_doc = _short_doc(node)
+                methods: List[str] = []
+                
+                # Only collect methods if class_methods flag is True
+                include_methods = get_class_methods_flag()
+                if include_methods:
+                    for item in node.body:
+                        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                            fname = item.name
+                            if fname.startswith("_"):
+                                continue
+                            sig = _format_arguments(item.args)
+                            doc = _short_doc(item)
+                            methods.append(f"{fname}({sig}) -> {doc}")
+                
+                # Add class if it has methods (when flag is True) or always (when flag is False)
+                if include_methods:
+                    if methods:  # Only add if has public methods
+                        classes.append((cls_name, cls_doc, methods))
+                else:
+                    classes.append((cls_name, cls_doc, []))  # Add class without methods
 
+        # Output Functions section
         if funcs:
             out_lines.append("Functions:")
             for f in funcs:
                 out_lines.append(f"  - {f}")
         else:
             out_lines.append("Functions: (none)")
+
+        # Output Classes section
+        if classes:
+            out_lines.append("Classes:")
+            for cls_name, cls_doc, methods in classes:
+                if cls_doc:
+                    out_lines.append(f"  - {cls_name}: {cls_doc}")
+                else:
+                    out_lines.append(f"  - {cls_name}")
+                for method in methods:
+                    out_lines.append(f"      • {method}")
+        else:
+            out_lines.append("Classes: (none)")
 
         out_lines.append("")
 
