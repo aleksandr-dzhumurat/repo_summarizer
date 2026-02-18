@@ -1,0 +1,59 @@
+# Repository Summarizer Configuration
+
+# Directories to skip during skeleton generation
+# These directories and all their subdirectories will be excluded from analysis
+skipped_dirs:
+  - example
+  - examples
+  - test
+  - tests
+  - contrib
+  - docs
+  - doc
+  - .git
+  - .github
+  - node_modules
+  - venv
+  - .venv
+  - __pycache__
+  - .pytest_cache
+  - .mypy_cache
+  - build
+  - dist
+
+# File patterns to skip (optional, for future use)
+skipped_patterns:
+  - "*.pyc"
+  - "*.pyo"
+  - "*.pyd"
+  - ".DS_Store"
+
+# Skeleton generation options
+# Include class methods in skeleton output (default: false)
+# When false, only shows class names without their methods
+class_methods: false
+
+# Maximum length for docstring previews in skeleton (characters)
+max_docstring_length: 120
+
+# Repository cloning options
+clone_timeout: 180  # seconds
+clone_depth: 1  # git clone depth
+cleanup_repo_after_processing: true  # remove cloned repo after analysis
+
+# LLM API configuration
+llm:
+  model: "deepseek-ai/DeepSeek-V3.2"
+  api_base: "https://api.tokenfactory.nebius.com/v1/chat/completions"
+  timeout: 60  # seconds
+  max_prompt_tokens: 50000
+  temperature: 0.7
+  max_tokens: 2048
+
+# API Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8000
+  title: "GitHub Repository Summarizer"
+  description: "Analyze GitHub repositories and generate LLM-based summaries"
+  version: "0.1.0"
