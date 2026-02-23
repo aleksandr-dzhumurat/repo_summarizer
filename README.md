@@ -2,6 +2,8 @@
 
 A tool that clones GitHub repositories, analyzes their structure, and generates LLM-based summaries.
 
+Supports deployment as either a FastAPI service or an agent skill.
+
 ## Setup
 
 ### 1. Environment Configuration
@@ -11,17 +13,10 @@ Create a `.env` file with required configuration:
 ```bash
 NEBIUS_API_KEY=your_api_key_here
 MAX_PROMPT_TOKENS=6000
+# this vas is used by API testing scripts
+REPO=https://github.com/psf/requests
 ```
-
-### 2. Create Data Directory
-
-```bash
-make prepare-dirs
-```
-
-This creates the `data/` directory where cloned repositories will be stored.
-
-### 3. Install Dependencies
+Install dependencies and activate env
 
 ```bash
 uv venv
@@ -29,7 +24,10 @@ source .venv/bin/activate
 uv pip install -r requirements.txt
 ```
 
-## Usage
+Configure [`config.yml`](config.yml) to customize skeleton generation (imports, functions, classes, directories to skip, etc.).
+
+
+### 2. Usage
 
 Start the FastAPI server:
 
@@ -39,8 +37,23 @@ make serve
 
 The server runs on `http://0.0.0.0:8000`
 
+Test the API (take up to 10 seconds for huge repo)
 
-#### API Endpoints
+```bash
+curl -X POST http://localhost:8000/summarize \
+  -H "Content-Type: application/json" \
+  -d '{"github_url": "https://github.com/psf/requests"}' | python3 -m json.tool
+```
+
+# Deployment
+
+Using git archive (respects .gitignore)
+
+```shell
+git archive --format=zip -o repo_summarizer.zip HEAD
+```
+
+## API Endpoints
 
 **POST /summarize**
 - Request: `{"github_url": "https://github.com/owner/repo"}`
@@ -50,11 +63,6 @@ The server runs on `http://0.0.0.0:8000`
 **GET /health**
 - Returns server health status
 
-#### Test the API
-
-```bash
-make test-api
-```
 
 This runs a smoke test that checks the health endpoint and submits a summarization request.
 
@@ -98,8 +106,6 @@ DATA_DIR=./data PYTHONPATH=. python3 scripts/generate_skeleton.py https://github
 - Create AI-powered summaries using DeepSeek LLM
 - FastAPI REST API for programmatic access
 - CLI script for direct execution
-
-## Why DeepSeek?
 
 DeepSeek-V3.2 was chosen for its excellent performance on code understanding tasks and cost-effectiveness compared to other frontier models.
 

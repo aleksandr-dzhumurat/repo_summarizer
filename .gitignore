@@ -208,3 +208,7 @@ __marimo__/
 
 data
 .history/
+
+repo_summarizer.zip
+
+.DS_Store

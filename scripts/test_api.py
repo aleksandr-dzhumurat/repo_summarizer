@@ -1,31 +1,44 @@
 #!/usr/bin/env python3
 """Lightweight API smoke test for the repository summarizer.
 
-This script checks `/health` and submits a `/summarize` request.
-It does NOT poll for results (the service no longer exposes `/info`).
+Tests /health and /summarize endpoints with response time measurement.
 """
 
-import asyncio
 import json
 import os
+import time
 
 import httpx
 
 BASE_URL = os.getenv("SUMMARIZER_BASE", "http://localhost:8000")
 
 
-async def test_api():
-    async with httpx.AsyncClient(timeout=30) as client:
-        # Health
-        print("1. Testing /health")
-        r = await client.get(f"{BASE_URL}/health")
-        print(r.status_code, r.json())
+def format_time(elapsed_ms: float) -> str:
+    """Format elapsed time in milliseconds, converting to seconds if >= 1000."""
+    if elapsed_ms >= 1000:
+        return f"{elapsed_ms / 1000:.2f} s"
+    return f"{elapsed_ms:.2f} ms"
 
-        # Summarize (do not poll for completion)
-        print("2. Submitting /summarize request (no polling)")
+
+def test_api():
+    """Test API endpoints with synchronous requests."""
+    with httpx.Client(timeout=300) as client:
+        # Health check
+        print("1. Testing /health")
+        start = time.perf_counter()
+        r = client.get(f"{BASE_URL}/health")
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        print(f"{r.status_code} {r.json()} ({format_time(elapsed_ms)})")
+
+        # Summarize request
+        print("\n2. Testing /summarize")
         payload = {"github_url": "https://github.com/psf/requests"}
-        r = await client.post(f"{BASE_URL}/summarize", json=payload)
-        print(r.status_code)
+        start = time.perf_counter()
+        r = client.post(f"{BASE_URL}/summarize", json=payload)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        print(f"Status: {r.status_code}")
+        print(f"Response time: {format_time(elapsed_ms)}")
+        
         try:
             body = r.json()
         except Exception:
@@ -34,4 +47,5 @@ async def test_api():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_api())
+    test_api()
+

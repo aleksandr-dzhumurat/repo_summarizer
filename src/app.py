@@ -18,11 +18,9 @@ class SummarizeRequest(BaseModel):
 
 
 class SummarizeResponse(BaseModel):
-    task_id: str
-    status: str
-    message: str
-    summary: dict | None = None
-    stats: dict | None = None
+    summary: str
+    technologies: list[str]
+    structure: str
 
 
 # Initialize FastAPI app
@@ -61,18 +59,16 @@ async def run_pipeline(task_id: str, repo_url: str) -> dict:
         try:
             summary = json.loads(summary_text)
         except json.JSONDecodeError:
-            summary = {"raw_summary": summary_text}
+            summary = {
+                "summary": summary_text,
+                "technologies": [],
+                "structure": "Unable to parse structure"
+            }
 
         logger.info("Generated LLM summary")
         logger.info(f"Task {task_id} completed successfully: {list(summary.keys()) if isinstance(summary, dict) else 'raw text'}")
 
-        return {
-            "summary": summary,
-            "stats": {
-                "total_files": len(index),
-                "skeleton_size": len(skeleton),
-            }
-        }
+        return summary
 
     except Exception as e:
         logger.error(f"Task {task_id} failed: {e}")
@@ -109,12 +105,15 @@ async def summarize_repo(request: SummarizeRequest) -> SummarizeResponse:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+    # Extract text summary if result.summary is a JSON object, otherwise use as-is
+    summary_value = result.get("summary", "No summary available")
+    if isinstance(summary_value, dict):
+        summary_value = summary_value.get("summary", "No summary available")
+
     return SummarizeResponse(
-        task_id=task_id,
-        status="finished",
-        message=f"Analysis completed for {repo_url}.",
-        summary=result.get("summary"),
-        stats=result.get("stats"),
+        summary=summary_value,
+        technologies=result.get("technologies", []),
+        structure=result.get("structure", "No structure information available"),
     )
 
 

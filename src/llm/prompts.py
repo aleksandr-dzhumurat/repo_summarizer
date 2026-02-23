@@ -13,11 +13,12 @@ def repo_summarizer_prompt(skeleton_text: str) -> str:
     """
     return f"""You are an expert software engineer tasked with analyzing and summarizing a GitHub Python repository.
 
-Below is a code skeleton extracted from the repository showing:
-- File paths and imports (excluding standard library)
-- Top-level functions and class methods with signatures and docstrings
+Below is a code skeleton extracted from the repository. The skeleton starts with a PACKAGES header listing all external dependencies, followed by documentation files with docstrings, and then Python source files with their docstrings.
 
-Analyze this structure and provide a concise summary.
+Format:
+- PACKAGES: comma-separated list of external package names (extracted from import statements)
+- Documentation: [filename] with extracted docstring content
+- File: [filepath] with extracted docstring content (if present)
 
 --- CODE SKELETON ---
 {skeleton_text}
@@ -32,9 +33,9 @@ Based on the code skeleton above, provide a JSON response with the following str
 }}
 
 Response requirements:
-- "summary": Must be 2-3 sentences describing the project's purpose. Example: "**Requests** is a popular Python library for making HTTP requests. It provides a simple, elegant API for handling HTTP operations..."
-- "technologies": Array of strings listing main technologies, languages, frameworks, and libraries used. Extract from imports and codebase patterns.
-- "structure": String describing directory layout and code organization. Example: "The project follows a standard Python package layout with the main source code in `src/requests/`, tests in `tests/`, and documentation in `docs/`."
+- "summary": Must be 2-3 sentences describing the project's purpose. Example: "**TimesFM** is a pretrained time-series foundation model developed by Google Research for time-series forecasting. It provides JAX and PyTorch implementations with support for fine-tuning via LoRA and DoRA adapters."
+- "technologies": Array of strings listing main technologies, languages, frameworks, and libraries used. Extract from PACKAGES header and codebase patterns. Include major frameworks (e.g., "JAX", "PyTorch", "Flax", "TensorFlow").
+- "structure": String describing directory layout and code organization. Example: "The project is organized with source code in `src/timesfm/` (core models), `v1/` (legacy implementations), experiments in `v1/experiments/`, and fine-tuning utilities in `v1/peft/` and `src/finetuning/`."
 
 Return ONLY valid JSON, no additional text or markdown formatting.
 """
