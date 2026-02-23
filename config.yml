@@ -1,7 +1,8 @@
 # Repository Summarizer Configuration
 
-# Directories to skip during skeleton generation
+# Directories to skip during file indexing and skeleton generation
 # These directories and all their subdirectories will be excluded from analysis
+# Used by both get_index() and code_skeleton() functions
 skipped_dirs:
   - example
   - examples
@@ -10,16 +11,22 @@ skipped_dirs:
   - contrib
   - docs
   - doc
+  - skills
   - .git
   - .github
   - node_modules
   - venv
   - .venv
+  - env
+  - .env
+  - vendor
+  - .tox
   - __pycache__
   - .pytest_cache
   - .mypy_cache
   - build
   - dist
+  - "*.egg-info"
 
 # File patterns to skip (optional, for future use)
 skipped_patterns:
@@ -28,10 +35,48 @@ skipped_patterns:
   - "*.pyd"
   - ".DS_Store"
 
+# File extensions to include during indexing
+# Files with these extensions will be indexed (files without extensions are also included)
+text_extensions:
+  - .py
+  - .txt
+  - .md
+  - .rst
+  - .json
+  - .yaml
+  - .yml
+  - .toml
+  - .ini
+  - .cfg
+  - .csv
+  - .pyi
+  - .html
+  - .htm
+  - .css
+  - .js
+
+
+# Import section for controlling import output
+import:
+  # Include relative imports (from .module import ...)
+  relative_imports: false
+  absolute_imports: false
+
 # Skeleton generation options
-# Include class methods in skeleton output (default: false)
-# When false, only shows class names without their methods
-class_methods: false
+# Class-related configuration (hierarchical)
+classes:
+  # Include class definitions in skeleton output (default: true)
+  # When false, skips classes entirely
+  definitions: false
+  
+  # Include class methods in skeleton output (default: false)
+  # When false, only shows class names without their methods
+  # Note: Only applies if definitions is true
+  methods: false
+
+# Include function definitions in skeleton output (default: true)
+# When false, skips functions entirely
+functions: false
 
 # Maximum length for docstring previews in skeleton (characters)
 max_docstring_length: 120
