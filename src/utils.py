@@ -1,3 +1,48 @@
+from pathlib import Path
+from typing import Optional
+
+
+def get_import_config(config_path: Optional[Path] = None) -> dict:
+    """Get import config section (relative_imports, absolute_imports)."""
+    config = load_config(config_path)
+    return config.get("import", {"relative_imports": True, "absolute_imports": True})
+
+def get_relative_imports_flag(config_path: Optional[Path] = None) -> bool:
+    """Return True if relative imports should be included."""
+    import_config = get_import_config(config_path)
+    return import_config.get("relative_imports", True)
+
+def get_absolute_imports_flag(config_path: Optional[Path] = None) -> bool:
+    """Return True if absolute imports should be included."""
+    import_config = get_import_config(config_path)
+    return import_config.get("absolute_imports", True)
+# ---
+import re
+
+
+def clean_markdown_text(text: str) -> str:
+    """
+    Remove all http/https links, HTML tags (e.g. <p>...</p>), and code blocks (```...``` or ~~~...~~~) from the input text.
+    Args:
+        text (str): Input markdown or HTML text.
+    Returns:
+        str: Cleaned text with links, tags, and code blocks removed.
+    """
+    # Remove code blocks (```...``` or ~~~...~~~)
+    text = re.sub(r'(```[\s\S]*?```|~~~[\s\S]*?~~~)', '', text)
+    # Remove inline code (`...`)
+    text = re.sub(r'`[^`]+`', '', text)
+    # Remove HTML tags
+    text = re.sub(r'<[^>]+>', '', text)
+    # Remove http/https links (both inline and bare)
+    text = re.sub(r'https?://\S+', '', text)
+    # Remove markdown links [text](url)
+    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+    # Strip markdown heading symbols (one or more # at the beginning of lines)
+    text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)
+    # Remove empty lines and strip
+    text = '\n'.join(line for line in text.splitlines() if line.strip())
+    return text.strip()
 """Utility helpers for the project (logging helpers)."""
 
 import asyncio
@@ -77,6 +122,20 @@ def get_skipped_dirs(config_path: Optional[Path] = None) -> list[str]:
     return config.get("skipped_dirs", [])
 
 
+def get_class_definitions_flag(config_path: Optional[Path] = None) -> bool:
+    """Get whether to include class definitions in skeleton output.
+    
+    Args:
+        config_path: Path to config.yml. If None, uses default location.
+        
+    Returns:
+        True if classes should be included (default), False to skip classes entirely.
+    """
+    config = load_config(config_path)
+    classes_config = config.get("classes", {})
+    return classes_config.get("definitions", True)
+
+
 def get_class_methods_flag(config_path: Optional[Path] = None) -> bool:
     """Get whether to include class methods in skeleton output.
     
@@ -85,9 +144,95 @@ def get_class_methods_flag(config_path: Optional[Path] = None) -> bool:
         
     Returns:
         True if class methods should be included, False to show only class names.
+        Note: Only applies if classes.definitions is True.
     """
     config = load_config(config_path)
-    return config.get("class_methods", False)
+    classes_config = config.get("classes", {})
+    # Only return True if both definitions and methods are enabled
+    if not classes_config.get("definitions", True):
+        return False
+    return classes_config.get("methods", False)
+
+
+def get_functions_flag(config_path: Optional[Path] = None) -> bool:
+    """Get whether to include functions in skeleton output.
+    
+    Args:
+        config_path: Path to config.yml. If None, uses default location.
+        
+    Returns:
+        True if functions should be included (default), False to skip functions.
+    """
+    config = load_config(config_path)
+    return config.get("functions", True)
+
+
+def get_text_extensions(config_path: Optional[Path] = None) -> list[str]:
+    """Get list of file extensions to include during indexing.
+    
+    Args:
+        config_path: Path to config.yml. If None, uses default location.
+        
+    Returns:
+        List of file extensions (e.g., ['.py', '.txt', '.md']).
+    """
+    config = load_config(config_path)
+    return config.get("text_extensions", [".py", ".txt", ".md"])
+
+
+def get_index(root_dir_path: str) -> list[dict[str, str]]:
+    """Return a flat list of dicts with key `file_path` for files under root.
+
+    `file_path` values are POSIX-style relative paths (strings) relative
+    to `root_dir_path`.
+    
+    Behavior:
+    - Walks the directory tree recursively.
+    - Skips any file or directory whose name starts with a dot (`.`).
+    - Skips any files under a `__pycache__` directory.
+    - Skips directories configured in skipped_dirs (from config.yml).
+    - Filters files by extension: if a file has an extension, it must be
+      one of the extensions listed in text_extensions (from config.yml).
+      Files without an extension are included (treated as text).
+    """
+    root = Path(root_dir_path).resolve()
+    results: list[dict[str, str]] = []
+    if not root.exists() or not root.is_dir():
+        return results
+
+    # Load excluded directories from config.yml
+    excluded_dirs_list = get_skipped_dirs()
+    excluded_dirs: set[str] = {d.lower() for d in excluded_dirs_list}
+    
+    # Load text extensions from config.yml
+    text_extensions_list = get_text_extensions()
+    text_extensions: set[str] = {ext.lower() for ext in text_extensions_list}
+
+    for dirpath, dirnames, filenames in os.walk(root):
+        # Skip directories that start with a dot or are in excluded list
+        # Modify dirnames in-place so os.walk will skip them recursively.
+        dirnames[:] = [d for d in dirnames if not d.startswith('.') and d.lower() not in excluded_dirs]
+
+        for fname in filenames:
+            if fname.startswith('.'):
+                continue
+
+            full = Path(dirpath) / fname
+
+            # Skip files under any __pycache__ (defence in depth)
+            if "__pycache__" in full.parts:
+                continue
+
+            # Extension based filtering: allow if no extension or ext in text_extensions
+            ext = full.suffix.lower()
+            if ext and ext not in text_extensions:
+                continue
+
+            # Compute relative POSIX path
+            rel = full.relative_to(root).as_posix()
+            results.append({"file_path": rel})
+
+    return results
 
 
 logger = get_logger(__name__)
@@ -158,4 +303,4 @@ async def clone_repo(repo_url: str, timeout: int = 120) -> Path:
     return Path(target_path)
 
 
-__all__ = ["get_logger", "clone_repo", "load_config", "get_skipped_dirs", "get_class_methods_flag"]
+__all__ = ["get_logger", "clone_repo", "load_config", "get_skipped_dirs", "get_class_methods_flag", "get_text_extensions", "get_index"]

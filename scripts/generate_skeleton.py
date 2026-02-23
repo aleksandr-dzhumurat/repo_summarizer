@@ -21,9 +21,8 @@ import asyncio
 import os
 import sys
 
-from src.crawler.index import get_index
-from src.crawler.naive_skeleton import code_skeleton
-from src.utils import clone_repo, get_logger
+from src.naive_skeleton import code_skeleton
+from src.utils import clone_repo, get_index, get_logger
 
 logger = get_logger(__name__)
 

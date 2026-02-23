@@ -6,11 +6,10 @@ import uuid
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, HttpUrl
 
-from src.crawler.index import get_index
-from src.crawler.naive_skeleton import code_skeleton
 from src.llm.llm_adapter import DeepSeekLLMAdapter
 from src.llm.prompts import repo_summarizer_prompt
-from src.utils import clone_repo, get_logger
+from src.naive_skeleton import code_skeleton
+from src.utils import clone_repo, get_index, get_logger
 
 logger = get_logger(__name__)
 
